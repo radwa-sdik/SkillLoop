@@ -1,0 +1,33 @@
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SkillLoop.Domain.Entities;
+
+namespace SkillLoop.Infrasturcture.Data.Configurations
+{
+    public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
+    {
+        public void Configure(EntityTypeBuilder<Notification> builder)
+        {
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Type)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            builder.Property(x => x.Title)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            builder.Property(x => x.Body)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            builder.HasIndex(x => new { x.UserId, x.IsRead, x.CreatedAt });
+
+            builder.HasOne(x => x.User)
+                .WithMany(x => x.Notifications)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+}

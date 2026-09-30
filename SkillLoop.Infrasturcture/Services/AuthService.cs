@@ -6,12 +6,14 @@ using Microsoft.Extensions.Options;
 using SkillLoop.Application.DTOs.Auth;
 using SkillLoop.Application.Interfaces.IService;
 using SkillLoop.Domain.Entities;
+using SkillLoop.Infrasturcture.Data;
+using SkillLoop.Infrasturcture.Security;
 
 namespace SkillLoop.Infrasturcture.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly Data.AppDbContext _db;
+        private readonly AppDbContext _db;
         private readonly ITokenService _tokens;
         private readonly IOtpService _otp;
         private readonly IFileStorageService _files;
@@ -43,7 +45,7 @@ namespace SkillLoop.Infrasturcture.Services
             if (await _db.Users.AnyAsync(x => x.PhoneNumber == phone, cancellationToken))
                 throw new InvalidOperationException("Phone number is already registered.");
 
-            var user = CreateUser(request.FullName, email, phone, BCrypt.HashPassword(request.Password));
+            var user = CreateUser(request.FullName, email, phone, BCrypt.Net.BCrypt.HashPassword(request.Password));
 
             _db.Users.Add(user);
             await _db.SaveChangesAsync(cancellationToken);
@@ -60,7 +62,7 @@ namespace SkillLoop.Infrasturcture.Services
                 .Include(x => x.Wallet)
                 .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
 
-            if (user == null || string.IsNullOrWhiteSpace(user.PasswordHash) || !BCrypt.Verify(request.Password, user.PasswordHash))
+            if (user == null || string.IsNullOrWhiteSpace(user.PasswordHash) || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid email or password.");
 
             return await IssueTokensAsync(user, cancellationToken);
@@ -189,7 +191,7 @@ namespace SkillLoop.Infrasturcture.Services
 
             await _otp.VerifyAsync(user.Id, request.Code, "PasswordReset", cancellationToken);
 
-            user.PasswordHash = BCrypt.HashPassword(request.NewPassword);
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
 
             await _db.RefreshTokens
                 .Where(x => x.UserId == user.Id && x.RevokedAt == null)

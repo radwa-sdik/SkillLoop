@@ -27,8 +27,15 @@ namespace SkillLoop.API
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT", In = ParameterLocation.Header, Description = "Enter: Bearer {your JWT token}" });
                 options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement { { new OpenApiSecuritySchemeReference("Bearer", doc), new List<string>() } });
             });
+
+
             var app = builder.Build();
-            if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+
+            if (app.Environment.IsDevelopment()) { 
+                app.UseSwagger(); 
+                app.UseSwaggerUI(); 
+            }
+
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();

@@ -15,7 +15,7 @@ namespace SkillLoop.Application.MappingProfiles
                 .ForMember(dest => dest.Email, opt => opt.Ignore())
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
                 .ForMember(dest => dest.AvatarUrl, opt => opt.Ignore())
-                .ForMember(dest => dest.PhoneVerified, opt => opt.Ignore())
+                .ForMember(dest => dest.EmailVerified, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore());
         }
     }

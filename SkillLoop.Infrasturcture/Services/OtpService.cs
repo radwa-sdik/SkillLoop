@@ -9,17 +9,17 @@ namespace SkillLoop.Infrasturcture.Services
     public class OtpService : IOtpService
     {
         private readonly Data.AppDbContext _db;
-        private readonly ISmsService _sms;
+        private readonly IEmailService _email;
 
-        public OtpService(Data.AppDbContext db, ISmsService sms)
+        public OtpService(Data.AppDbContext db, IEmailService email)
         {
             _db = db;
-            _sms = sms;
+            _email = email;
         }
 
-        public async Task SendAsync(Guid userId, string phoneNumber, string purpose, CancellationToken cancellationToken = default)
+        public async Task SendAsync(Guid userId, string email, string purpose, CancellationToken cancellationToken = default)
         {
-            if (purpose is not ("Registration" or "PasswordReset" or "PhoneChange"))
+            if (purpose is not ("Registration" or "PasswordReset"))
                 throw new InvalidOperationException("Unsupported OTP purpose.");
 
             var recentlySent = await _db.OtpCodes
@@ -42,7 +42,16 @@ namespace SkillLoop.Infrasturcture.Services
             });
 
             await _db.SaveChangesAsync(cancellationToken);
-            await _sms.SendAsync(phoneNumber, $"Your SkillLoop verification code is {code}.", cancellationToken);
+
+            var subject = purpose == "PasswordReset"
+                ? "SkillLoop Password Reset Code"
+                : "SkillLoop Verification Code";
+
+            var body = $"Your SkillLoop verification code is: {code}{Environment.NewLine}{Environment.NewLine}" +
+                       "This code expires in 5 minutes." + Environment.NewLine +
+                       "If you did not request this code, you can ignore this email.";
+
+            await _email.SendAsync(email, subject, body, cancellationToken);
         }
 
         public async Task VerifyAsync(Guid userId, string code, string purpose, CancellationToken cancellationToken = default)

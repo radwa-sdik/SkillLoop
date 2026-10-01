@@ -15,11 +15,12 @@ namespace SkillLoop.Infrasturcture
             services.AddDbContext<AppDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
             services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
             services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
+            services.Configure<EmailOptions>(configuration.GetSection("Email"));
             services.AddScoped<ITokenService, JwtTokenService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<IFileStorageService, CloudinaryFileStorageService>();
-            services.AddHttpClient<ISmsService, HttpSmsService>();
+            services.AddScoped<IEmailService, SmtpEmailService>();
             services.AddHttpClient<ISocialLoginService, SocialLoginService>();
             return services;
         }

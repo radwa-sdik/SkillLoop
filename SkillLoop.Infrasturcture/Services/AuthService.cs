@@ -37,12 +37,12 @@ namespace SkillLoop.Infrasturcture.Services
             ValidatePassword(request.Password, request.ConfirmPassword);
 
             var email = request.Email.Trim().ToLowerInvariant();
-            var phone = request.PhoneNumber.Trim();
+            var phone = request.PhoneNumber?.Trim();
 
             if (await _db.Users.AnyAsync(x => x.Email == email, cancellationToken))
                 throw new InvalidOperationException("Email is already registered.");
 
-            if (await _db.Users.AnyAsync(x => x.PhoneNumber == phone, cancellationToken))
+            if (!string.IsNullOrWhiteSpace(phone) && await _db.Users.AnyAsync(x => x.PhoneNumber == phone, cancellationToken))
                 throw new InvalidOperationException("Phone number is already registered.");
 
             var user = CreateUser(request.FullName, email, phone, BCrypt.Net.BCrypt.HashPassword(request.Password));
@@ -50,7 +50,7 @@ namespace SkillLoop.Infrasturcture.Services
             _db.Users.Add(user);
             await _db.SaveChangesAsync(cancellationToken);
 
-            await _otp.SendAsync(user.Id, phone, "Registration", cancellationToken);
+            await _otp.SendAsync(user.Id, user.Email, "Registration", cancellationToken);
 
             return await IssueTokensAsync(user, cancellationToken);
         }
@@ -94,11 +94,8 @@ namespace SkillLoop.Infrasturcture.Services
 
             if (user == null)
             {
-                user = CreateUser(
-                    identity.FullName,
-                    identity.Email.Trim().ToLowerInvariant(),
-                    request.PhoneNumber?.Trim(),
-                    string.Empty);
+                user = CreateUser(identity.FullName, identity.Email.Trim().ToLowerInvariant(), request.PhoneNumber?.Trim(), string.Empty);
+                user.EmailVerified = true;
 
                 _db.Users.Add(user);
                 await _db.SaveChangesAsync(cancellationToken);
@@ -154,19 +151,19 @@ namespace SkillLoop.Infrasturcture.Services
 
         public async Task SendOtpAsync(SendOtpRequest request, CancellationToken cancellationToken = default)
         {
-            var phone = request.PhoneNumber.Trim();
-            var user = await _db.Users.FirstOrDefaultAsync(x => x.PhoneNumber == phone, cancellationToken);
+            var email = request.Email.Trim().ToLowerInvariant();
+            var user = await _db.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
 
             if (user == null)
                 throw new KeyNotFoundException("User not found.");
 
-            await _otp.SendAsync(user.Id, user.PhoneNumber!, request.Purpose, cancellationToken);
+            await _otp.SendAsync(user.Id, user.Email, request.Purpose, cancellationToken);
         }
 
         public async Task VerifyOtpAsync(VerifyOtpRequest request, CancellationToken cancellationToken = default)
         {
-            var phone = request.PhoneNumber.Trim();
-            var user = await _db.Users.FirstOrDefaultAsync(x => x.PhoneNumber == phone, cancellationToken);
+            var email = request.Email.Trim().ToLowerInvariant();
+            var user = await _db.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
 
             if (user == null)
                 throw new KeyNotFoundException("User not found.");
@@ -174,7 +171,7 @@ namespace SkillLoop.Infrasturcture.Services
             await _otp.VerifyAsync(user.Id, request.Code, request.Purpose, cancellationToken);
 
             if (request.Purpose.Equals("Registration", StringComparison.OrdinalIgnoreCase))
-                user.PhoneVerified = true;
+                user.EmailVerified = true;
 
             await _db.SaveChangesAsync(cancellationToken);
         }
@@ -183,8 +180,8 @@ namespace SkillLoop.Infrasturcture.Services
         {
             ValidatePassword(request.NewPassword, request.ConfirmPassword);
 
-            var phone = request.PhoneNumber.Trim();
-            var user = await _db.Users.FirstOrDefaultAsync(x => x.PhoneNumber == phone, cancellationToken);
+            var email = request.Email.Trim().ToLowerInvariant();
+            var user = await _db.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
 
             if (user == null)
                 throw new KeyNotFoundException("User not found.");
@@ -219,11 +216,9 @@ namespace SkillLoop.Infrasturcture.Services
                     throw new InvalidOperationException("Phone number is already registered.");
 
                 user.PhoneNumber = phone;
-                user.PhoneVerified = false;
             }
 
             _mapper.Map(request, user);
-
             await _db.SaveChangesAsync(cancellationToken);
 
             return _mapper.Map<UserProfileResponse>(user);
@@ -234,7 +229,6 @@ namespace SkillLoop.Infrasturcture.Services
             var user = await FindUserAsync(userId, cancellationToken);
 
             user.AvatarUrl = await _files.UploadImageAsync(file, cancellationToken);
-
             await _db.SaveChangesAsync(cancellationToken);
 
             return _mapper.Map<UserProfileResponse>(user);
@@ -287,11 +281,7 @@ namespace SkillLoop.Infrasturcture.Services
 
             await _db.SaveChangesAsync(cancellationToken);
 
-            return new AuthResponse(
-                accessToken,
-                refreshToken,
-                _tokens.AccessTokenExpiresAt,
-                _mapper.Map<UserProfileResponse>(user));
+            return new AuthResponse(accessToken, refreshToken, _tokens.AccessTokenExpiresAt, _mapper.Map<UserProfileResponse>(user));
         }
 
         private static void ValidatePassword(string password, string confirmation)

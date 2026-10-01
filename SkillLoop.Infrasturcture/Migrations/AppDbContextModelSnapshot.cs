@@ -662,7 +662,7 @@ namespace SkillLoop.Infrasturcture.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
-                    b.Property<bool>("PhoneVerified")
+                    b.Property<bool>("EmailVerified")
                         .HasColumnType("bit");
 
                     b.HasKey("Id");

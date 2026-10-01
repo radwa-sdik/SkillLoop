@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using SkillLoop.API.Filters;
 using SkillLoop.Application;
 using SkillLoop.Infrasturcture;
 using System.Text;
@@ -13,7 +14,10 @@ namespace SkillLoop.API
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers(options =>
+            {
+                options.Filters.Add<FluentValidationFilter>();
+            });
             builder.Services.AddProblemDetails();
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddInfrastructure(builder.Configuration);

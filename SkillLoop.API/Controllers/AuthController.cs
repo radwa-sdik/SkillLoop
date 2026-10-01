@@ -18,10 +18,24 @@ namespace SkillLoop.API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+        public async Task<ActionResult<MessageResponse>> Register(RegisterRequest request)
         {
             var result = await _auth.RegisterAsync(request);
             return Ok(result);
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request)
+        {
+            await _auth.VerifyEmailAsync(request);
+            return NoContent();
+        }
+
+        [HttpPost("resend-email-verification")]
+        public async Task<IActionResult> ResendEmailVerification(ResendEmailVerificationRequest request)
+        {
+            await _auth.ResendEmailVerificationAsync(request);
+            return NoContent();
         }
 
         [HttpPost("login")]
@@ -53,28 +67,14 @@ namespace SkillLoop.API.Controllers
             return NoContent();
         }
 
-        [HttpPost("otp/send")]
-        public async Task<IActionResult> SendOtp(SendOtpRequest request)
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
         {
-            await _auth.SendOtpAsync(request);
+            await _auth.ForgotPasswordAsync(request);
             return NoContent();
         }
 
-        [HttpPost("otp/resend")]
-        public async Task<IActionResult> ResendOtp(SendOtpRequest request)
-        {
-            await _auth.SendOtpAsync(request);
-            return NoContent();
-        }
-
-        [HttpPost("otp/verify")]
-        public async Task<IActionResult> VerifyOtp(VerifyOtpRequest request)
-        {
-            await _auth.VerifyOtpAsync(request);
-            return NoContent();
-        }
-
-        [HttpPost("password/reset")]
+        [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
         {
             await _auth.ResetPasswordAsync(request);

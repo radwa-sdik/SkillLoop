@@ -2,7 +2,8 @@ namespace SkillLoop.Application.Interfaces.IService
 {
     public interface IOtpService
     {
-        Task SendAsync(Guid userId, string email, string purpose, CancellationToken cancellationToken = default);
+        Task SendEmailVerificationAsync(Guid userId, string email, CancellationToken cancellationToken = default);
+        Task SendPasswordResetAsync(Guid userId, string phoneNumber, CancellationToken cancellationToken = default);
         Task VerifyAsync(Guid userId, string code, string purpose, CancellationToken cancellationToken = default);
     }
 }

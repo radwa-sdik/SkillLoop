@@ -10,7 +10,7 @@ namespace SkillLoop.Domain.Entities
         public string? AvatarUrl { get; set; }
         public string? Headline { get; set; }
         public string? City { get; set; }
-        public bool EmailVerified { get; set; }
+        public bool EmailVerified { get; set; } = false;
         public DateTime CreatedAt { get; set; }
         public ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
         public ICollection<OtpCode> OtpCodes { get; set; } = new List<OtpCode>();

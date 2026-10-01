@@ -8,54 +8,35 @@ namespace SkillLoop.Infrasturcture.Services
 {
     public class OtpService : IOtpService
     {
+        private const string EmailVerification = "EmailVerification";
+        private const string PasswordReset = "PasswordReset";
+
         private readonly Data.AppDbContext _db;
         private readonly IEmailService _email;
+        private readonly ISmsService _sms;
 
-        public OtpService(Data.AppDbContext db, IEmailService email)
+        public OtpService(Data.AppDbContext db, IEmailService email, ISmsService sms)
         {
             _db = db;
             _email = email;
+            _sms = sms;
         }
 
-        public async Task SendAsync(Guid userId, string email, string purpose, CancellationToken cancellationToken = default)
+        public Task SendEmailVerificationAsync(Guid userId, string email, CancellationToken cancellationToken = default)
         {
-            if (purpose is not ("Registration" or "PasswordReset"))
-                throw new InvalidOperationException("Unsupported OTP purpose.");
+            return SendAsync(userId, email, EmailVerification, cancellationToken);
+        }
 
-            var recentlySent = await _db.OtpCodes
-                .AnyAsync(x => x.UserId == userId && x.Purpose == purpose && x.UsedAt == null && x.ExpiresAt > DateTime.UtcNow.AddMinutes(4), cancellationToken);
-
-            if (recentlySent)
-                throw new InvalidOperationException("Please wait before requesting another OTP.");
-
-            var code = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
-            var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
-
-            _db.OtpCodes.Add(new OtpCode
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                CodeHash = hash,
-                Purpose = purpose,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(5),
-                Attempts = 0
-            });
-
-            await _db.SaveChangesAsync(cancellationToken);
-
-            var subject = purpose == "PasswordReset"
-                ? "SkillLoop Password Reset Code"
-                : "SkillLoop Verification Code";
-
-            var body = $"Your SkillLoop verification code is: {code}{Environment.NewLine}{Environment.NewLine}" +
-                       "This code expires in 5 minutes." + Environment.NewLine +
-                       "If you did not request this code, you can ignore this email.";
-
-            await _email.SendAsync(email, subject, body, cancellationToken);
+        public Task SendPasswordResetAsync(Guid userId, string phoneNumber, CancellationToken cancellationToken = default)
+        {
+            return SendAsync(userId, phoneNumber, PasswordReset, cancellationToken);
         }
 
         public async Task VerifyAsync(Guid userId, string code, string purpose, CancellationToken cancellationToken = default)
         {
+            if (purpose is not (EmailVerification or PasswordReset))
+                throw new InvalidOperationException("Unsupported OTP purpose.");
+
             var otp = await _db.OtpCodes
                 .Where(x => x.UserId == userId && x.Purpose == purpose && x.UsedAt == null)
                 .OrderByDescending(x => x.ExpiresAt)
@@ -80,6 +61,49 @@ namespace SkillLoop.Infrasturcture.Services
 
             otp.UsedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        private async Task SendAsync(Guid userId, string destination, string purpose, CancellationToken cancellationToken)
+        {
+            var recentlySent = await _db.OtpCodes
+                .AnyAsync(x => x.UserId == userId &&
+                               x.Purpose == purpose &&
+                               x.UsedAt == null &&
+                               x.ExpiresAt > DateTime.UtcNow.AddMinutes(4), cancellationToken);
+
+            if (recentlySent)
+                throw new InvalidOperationException("Please wait before requesting another OTP.");
+
+            var code = RandomNumberGenerator.GetInt32(1000, 10000).ToString();
+            var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
+
+            _db.OtpCodes.Add(new OtpCode
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                CodeHash = hash,
+                Purpose = purpose,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+                Attempts = 0
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+
+            if (purpose == EmailVerification)
+            {
+                await _email.SendAsync(
+                    destination,
+                    "SkillLoop Email Verification Code",
+                    $"Your SkillLoop verification code is: {code}{Environment.NewLine}{Environment.NewLine}This code expires in 5 minutes.",
+                    cancellationToken);
+            }
+            else
+            {
+                await _sms.SendAsync(
+                    destination,
+                    $"Your SkillLoop password reset code is: {code}. It expires in 5 minutes.",
+                    cancellationToken);
+            }
         }
     }
 }
